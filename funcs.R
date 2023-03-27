@@ -1,3 +1,5 @@
+#Set up data frame with all team name info to build scraping urls
+#and aid merges
 team_names <- c("Utah Jazz", "Washington Wizards", "Boston Celtics", 
                 "Denver Nuggets", "Memphis Grizzlies", "Milwaukee Bucks",
                 "Philadelphia 76ers", "Sacramento Kings", "Cleveland Cavaliers",
@@ -19,6 +21,7 @@ team_abbr <- c("Jazz", "Wizards", "Celtics", "Nuggets", "Grizzlies", "Bucks",
 
 teams <- data.frame(team_names, team_abbr)
 
+#Clean ESPN data
 clean_dat <- function(df, conf) {
   colnames(df) <- tolower(colnames(df))
   df <- df %>%
@@ -37,6 +40,7 @@ clean_dat <- function(df, conf) {
   return(df)
 }
 
+#Pull and clean 538 projections for NBA standings
 clean_dat538 <- function(teams) {
   tmp <- read_html("https://projects.fivethirtyeight.com/2023-nba-predictions/") %>%
     html_table()
@@ -59,10 +63,13 @@ clean_dat538 <- function(teams) {
   return(df)
 }
 
+#Actually calculate wins needed for Pre-Built Assumptions tab
 get_reqs <- function(df, tname, desired_seed=10, dat538, ass_538) {
 
+  #Merge ESPN and 538 data
   df <- left_join(df, dat538, by = "team_full")
   
+  #Filter to selected team
   df_curr <- df %>%
     filter(team_full == tname)
   
@@ -71,11 +78,13 @@ get_reqs <- function(df, tname, desired_seed=10, dat538, ass_538) {
 
   gleft_cur = df_curr$g_left[1]
   
+  #Filter to selected conference and calculate wins needed
   df <- df %>%
     filter(conference == df_curr$conference[1]) %>%
     mutate(w_pace = ceiling(pct*82),
            w_needed = w_pace - wins_curr)
   
+  #Change wins needed if 538 Assumptions selected
   if(ass_538 == T) {
     df <- df %>%
       mutate(w_needed = w_proj538 - wins_curr, 
@@ -95,13 +104,14 @@ get_reqs <- function(df, tname, desired_seed=10, dat538, ass_538) {
   df_needed <- df %>%
     filter(proj_seed == desired_seed)
   
+  #Calculate seed that team needs to beat for remaining games
   pct_needed = df_needed$pct_needed[1]
   
   seed_tobeat = which(df$pct>pct_needed)+1
 
   seed_tobeat = seed_tobeat[!is.na(seed_tobeat)]
   
-  # print()
+  #Text info summarizing results, if/else statements handle edge cases
   if(df_curr$team_full == df_needed$team_full) {
     text = print("The selected team is already projected to be this seed.")
     
@@ -126,12 +136,15 @@ get_reqs <- function(df, tname, desired_seed=10, dat538, ass_538) {
     
   }
   
+  #Return a list that contains 4 objects: Standings, info about selected team
+  #info about selected seed, and text output
   out <- list(df, df_curr, df_needed, text)
   names(out) <- c("data", "data_curr", "data_needed", "text")
   
   return(out)
 }
 
+#Scrape schedule of a selected team for Pick Remaining Games tab
 scrape_sched <- function(team_curr, tms, df) {
   team_abb = team_curr$team_abb[1]
 
@@ -147,7 +160,7 @@ scrape_sched <- function(team_curr, tms, df) {
   sched <- sched %>%
     mutate(opp = gsub("vs|@", "", OPPONENT))
   
-  #Ghetto merge
+  #Bootstrapped merge
   team_match = sapply(sched$opp, function(x) teams$team_names[str_detect(teams$team_names, x)])
   
   sched$team_full = team_match
@@ -170,6 +183,8 @@ scrape_sched <- function(team_curr, tms, df) {
   return(sched)
 }
 
+#Function to update standings based on selected Wins/Losses in 
+#Pick Remaining Games tab
 get_custom_wins <- function(df, curr, sch, full_dat) {
   proj_win = sum(sch$proj_win_num)
   
@@ -194,13 +209,4 @@ get_custom_wins <- function(df, curr, sch, full_dat) {
   return(custom_table)
 }
 
-
-
-# test = scrape_sched(cur, teams, dat)
-# 
-# proj_remaining_record = sum(test$proj_win_num)
-# 
-# tmp <- get_reqs(dat, "Los Angeles Lakers", 10, dat_538, F)
-# 
-# cur <- tmp$data_curr
 
