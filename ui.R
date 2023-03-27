@@ -5,15 +5,18 @@ library(rvest)
 library(DT)
 library(reactable)
 
+#Pull functions
 source(paste0("funcs.R"))
 
 
 ui <- fluidPage(
+  #Enlargen text
   tags$head(tags$style('
    body {
       font-size: 17.5px; 
    }'
   )),
+  #Background color of selected rows in DataTables (doesn't work when pushed to AWS)
   tags$style(HTML('table.dataTable tr.selected td, table.dataTable td.selected {background-color: lightblue !important;}')),
   title = "NBA Playoff Tool",
   # App title ----
@@ -21,10 +24,11 @@ ui <- fluidPage(
     h1("NBA Playoff Seedings Projection Tool")
   ),
   
+  #Sidebar with inputs
   sidebarLayout(
-    # Sidebar panel for inputs ----
     sidebarPanel(position = "left",
                  h4("Select Inputs"),
+                 #Select NBA team
                  selectizeInput(
                    'team', label = "Team", choices = sort(team_names),
                    selected = NULL,
@@ -32,11 +36,14 @@ ui <- fluidPage(
                                   placeholder = 'Type or select an NBA Team',
                                   onInitialize = I('function() { this.setValue(""); }'))
                  ),
+                 #Conditional panel to input desired Seed. Only populated when 
+                 #not in custom pick tab.
                  conditionalPanel(condition = "input.tabs != '<strong>Pick Remaining Games</strong>'",
                                   numericInput('dseed', label = "Desired Seed",  value = 10,
                                                min = 1, max = 10),
                                   ),
-
+                 #Conditional panel to input Assumptions. Only populated when 
+                 #not in custom pick tab.
                  conditionalPanel(condition = "input.tabs != '<strong>Pick Remaining Games</strong>'",
                                   radioButtons('ass', 'Pace Assumptions', 
                                                c('Current Pace' = 'proj_current',
@@ -51,7 +58,9 @@ ui <- fluidPage(
     
     # Main panel for displaying outputs ----
     mainPanel(position = "right",
+              #Tabs for each output
               tabsetPanel(id = "tabs",
+                #Pre-built assumptions panel setup
                 tabPanel(id = "test1",
                          strong("Pre-Built Assumptions"),
                          h4("Selected Team"),
@@ -64,6 +73,7 @@ ui <- fluidPage(
                          br(),
                          htmlOutput("text_output")
                 ),
+                #Custom pick tab
                 tabPanel(id = "test3",
                          strong("Pick Remaining Games"),
                          h4("Selected Team"),
@@ -77,6 +87,7 @@ ui <- fluidPage(
                          strong("Current Standings"),
                          DT::dataTableOutput("table_standings")
                 ),
+                #Instructions panel
                 tabPanel(id = "test4",
                          strong("Instructions"),
                          h3("Instructions"),
